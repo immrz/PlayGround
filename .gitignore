@@ -2,3 +2,7 @@ venv
 .idea
 __pycache__
 *deprecated*
+nohup*
+data_and_model
+run.sh
+

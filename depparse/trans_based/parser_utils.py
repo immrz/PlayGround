@@ -20,7 +20,7 @@ ROOT = '<ROOT>'
 class Config(object):
     language = 'english'
     with_punct = True
-    unlabeled = True
+    unlabeled = False
     lowercase = True
     use_pos = True
     use_dep = True
