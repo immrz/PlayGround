@@ -42,7 +42,6 @@ class PartialParse:
             try:
                 self.parse_step(transition, parser)
             except ValueError:
-                traceback.print_exc()
                 break
 
         else:

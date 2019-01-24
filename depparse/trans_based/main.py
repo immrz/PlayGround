@@ -69,7 +69,8 @@ def parse_args():
 
 def train_model(train_data, model, criterion, optimizer, scheduler, dev_data=None, batch_size=32, num_epoch=100):
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-    eval_data, parser = dev_data
+    if dev_data is not None:
+        eval_data, parser = dev_data
 
     for epoch in range(num_epoch):
         model.train()
@@ -88,8 +89,9 @@ def train_model(train_data, model, criterion, optimizer, scheduler, dev_data=Non
             epoch_loss += loss.item()
 
         print('Training epoch {:03d}, loss is {:.4f}'.format(epoch, epoch_loss))
-        print('Evaluating on the development set...')
-        prediction(model, eval_data, parser)
+        if dev_data is not None:
+            print('Evaluating on the development set...')
+            prediction(model, eval_data, parser)
         print('\n' + '=' * 40 + '\n')
     return model
 
@@ -99,6 +101,7 @@ def prediction(model, data, parser):
     with torch.set_grad_enabled(False):
         num_suc = 0
         num_correct = 0
+        num_correct_label = 0
         num_total = 0
 
         for id, example in enumerate(data):
@@ -110,9 +113,14 @@ def prediction(model, data, parser):
             correct, n_words = ex.accuracy()
             num_correct += correct
             num_total += n_words
+            if not parser.unlabeled:
+                correct_label, _ = ex.accuracy(unlabeled=False)
+                num_correct_label += correct_label
 
     print('Totally {:d} sentences, {:d} succeeded!'.format(len(data), num_suc))
-    print('Accuracy: {:d} / {:d} = {:.4f}'.format(num_correct, num_total, num_correct / num_total))
+    print('UAS: {:d} / {:d} = {:.4f}'.format(num_correct, num_total, num_correct / num_total))
+    if not parser.unlabeled:
+        print('LAS: {:d} / {:d} = {:.4f}'.format(num_correct_label, num_total, num_correct_label / num_total))
 
 
 def main():
@@ -150,7 +158,7 @@ def main():
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=default.num_epoch//3, gamma=0.1)
 
     model = train_model(train_data, model, criterion, optimizer, exp_lr_scheduler,
-                        batch_size=default.batch_size, num_epoch=default.num_epoch)
+                        dev_data=(dev_set, parser), batch_size=default.batch_size, num_epoch=default.num_epoch)
 
     if args.model_path is not None:
         torch.save(model.state_dict(), args.model_path)
