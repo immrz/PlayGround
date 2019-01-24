@@ -37,7 +37,7 @@ class PartialParse:
             feature = parser.extract_features(self.stack, self.buf, self.arcs, self.ex)
             legal_label = parser.legal_labels(self.stack, self.buf)
             prob = model(torch.LongTensor(feature), torch.DoubleTensor(legal_label).view(1, -1))
-            transition = torch.argmax(prob, dim=-1)
+            transition = torch.argmax(prob, dim=-1).item()
 
             try:
                 self.parse_step(transition, parser)

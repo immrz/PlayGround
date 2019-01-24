@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from depparse.trans_based.parser_utils import load_and_preprocess_data
 from depparse.trans_based.parse import PartialParse
+from depparse.diagnosis import check_fault
 import argparse
 
 
@@ -60,7 +61,8 @@ def parse_args():
     parser.add_argument('--momentum', type=float, help='The momentum value.')
     parser.add_argument('--batch-size', type=int, help='The size of each batch.')
     parser.add_argument('--num-epoch', type=int, help='The number of epochs.')
-    parser.add_argument('--hidden-size', type=int, help='The size of the hidden layer')
+    parser.add_argument('--hidden-size', type=int, help='The size of the hidden layer.')
+    parser.add_argument('--diagnosis-file', type=str, help='The file to output fault examples.')
     args = parser.parse_args()
     return args
 
@@ -133,6 +135,16 @@ def main():
         default.hidden_size = args.hidden_size
 
     model = NaiveParser(embeddings_matrix, train_data.num_ft, train_data.num_label, hidden_size=default.hidden_size)
+
+    # debug the model instead of training
+    if args.diagnosis_file is not None:
+        prediction(model, test_set, parser)
+        return
+        model.load_state_dict(torch.load(args.model_path))
+        check_fault.diagnosing(model, test_set, parser, args.diagnosis_file)
+        return
+
+    # train the model and save it
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(params=model.parameters(), lr=default.lr, momentum=default.momentum)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=default.num_epoch//3, gamma=0.1)
