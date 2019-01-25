@@ -146,8 +146,6 @@ def main():
 
     # debug the model instead of training
     if args.diagnosis_file is not None:
-        prediction(model, test_set, parser)
-        return
         model.load_state_dict(torch.load(args.model_path))
         check_fault.diagnosing(model, test_set, parser, args.diagnosis_file)
         return

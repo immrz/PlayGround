@@ -43,9 +43,11 @@ class Parser(object):
             logging.info('Warning: more than one root label')
             logging.info(counter)
         self.root_label = counter.most_common()[0][0]
-        deprel = [self.root_label] + list(set([w for ex in dataset
+
+        # here it is necessary to sort the list because of the un-ordering characteristic of set
+        deprel = [self.root_label] + sorted(list(set([w for ex in dataset
                                                for w in ex['label']
-                                               if w != self.root_label]))
+                                               if w != self.root_label])))
         tok2id = {L_PREFIX + l: i for (i, l) in enumerate(deprel)}
         tok2id[L_PREFIX + NULL] = self.L_NULL = len(tok2id)
 

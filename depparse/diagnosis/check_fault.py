@@ -48,5 +48,5 @@ def parse_examples(model, data, parser, fo):
 def diagnosing(model, data, parser, output_file, **kwargs):
     model.eval()
     with torch.set_grad_enabled(False), open(output_file, 'w') as fo:
-        fo.write(_first_row)
+        fo.write(_first_row + '\n')
         parse_examples(model, data, parser, fo)
