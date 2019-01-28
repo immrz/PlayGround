@@ -10,11 +10,13 @@ import argparse
 
 
 class HyperParam:
-    lr = 1e-3
+    lr = 1e-2
     momentum = 0.9
     batch_size = 32
     num_epoch = 200
-    hidden_size = 800
+    hidden_size = 200
+    weight_decay = 10e-8
+    gpu_id = 0
 
 
 class TreeBank(Dataset):
@@ -49,7 +51,8 @@ class NaiveParser(nn.Module):
             legal_label = legal_label.type_as(embed_ft)
         in_ft = torch.cat([embed_ft, legal_label], dim=-1)
         hidden = self.fc1(in_ft)
-        hidden = torch.tanh(hidden)
+        # hidden = torch.tanh(hidden)
+        hidden = hidden ** 3  # cube activation in {Chen & Manning, 2014}
         return self.fc2(hidden)
 
 
@@ -62,23 +65,29 @@ def parse_args():
     parser.add_argument('--batch-size', type=int, help='The size of each batch.')
     parser.add_argument('--num-epoch', type=int, help='The number of epochs.')
     parser.add_argument('--hidden-size', type=int, help='The size of the hidden layer.')
+    parser.add_argument('--weight-decay', type=float, help='The L2 regularization term.')
     parser.add_argument('--diagnosis-file', type=str, help='The file to output fault examples.')
     args = parser.parse_args()
     return args
 
 
-def train_model(train_data, model, criterion, optimizer, scheduler, dev_data=None, batch_size=32, num_epoch=100):
+def train_model(train_data, model, criterion, optimizer, device,
+                scheduler=None, dev_data=None, batch_size=32, num_epoch=100):
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
     if dev_data is not None:
         eval_data, parser = dev_data
 
+    model = model.to(device)
+
     for epoch in range(num_epoch):
         model.train()
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
         epoch_loss = 0.0
 
         for sample in train_loader:
             feature, legal_label, gt = sample['feature'], sample['legal_label'], sample['gt']
+            feature, legal_label, gt = feature.to(device), legal_label.to(device), gt.to(device)
             out = model(feature, legal_label)
 
             optimizer.zero_grad()
@@ -141,6 +150,8 @@ def main():
         default.num_epoch = args.num_epoch
     if args.hidden_size is not None:
         default.hidden_size = args.hidden_size
+    if args.weight_decay is not None:
+        default.weight_decay = args.weight_decay
 
     model = NaiveParser(embeddings_matrix, train_data.num_ft, train_data.num_label, hidden_size=default.hidden_size)
 
@@ -152,10 +163,13 @@ def main():
 
     # train the model and save it
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(params=model.parameters(), lr=default.lr, momentum=default.momentum)
+    # optimizer = optim.SGD(params=model.parameters(), lr=default.lr, momentum=default.momentum)
+    optimizer = optim.Adagrad(params=model.parameters(), lr=default.lr, weight_decay=default.weight_decay)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=default.num_epoch//3, gamma=0.1)
+    device = torch.device('cuda:{:d}'.format(default.gpu_id)
+                          if default.gpu_id >= 0 and torch.cuda.is_available() else 'cpu')
 
-    model = train_model(train_data, model, criterion, optimizer, exp_lr_scheduler,
+    model = train_model(train_data, model, criterion, optimizer, device,
                         dev_data=(dev_set, parser), batch_size=default.batch_size, num_epoch=default.num_epoch)
 
     if args.model_path is not None:
