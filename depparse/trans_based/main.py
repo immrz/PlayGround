@@ -102,7 +102,7 @@ def train_model(train_data, model, criterion, optimizer, device,
             print('Evaluating on the development set...')
             prediction(model, eval_data, parser)
         print('\n' + '=' * 40 + '\n')
-    return model
+    return model.to('cpu')
 
 
 def prediction(model, data, parser):
@@ -115,7 +115,7 @@ def prediction(model, data, parser):
 
         for id, example in enumerate(data):
             ex = PartialParse(example)
-            ex.parse(model, parser)
+            ex.safe_parse(model, parser)
             if not ex.success:
                 continue
             num_suc += 1
@@ -164,8 +164,8 @@ def main():
     # train the model and save it
     criterion = nn.CrossEntropyLoss()
     # optimizer = optim.SGD(params=model.parameters(), lr=default.lr, momentum=default.momentum)
+    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=default.num_epoch // 3, gamma=0.1)
     optimizer = optim.Adagrad(params=model.parameters(), lr=default.lr, weight_decay=default.weight_decay)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=default.num_epoch//3, gamma=0.1)
     device = torch.device('cuda:{:d}'.format(default.gpu_id)
                           if default.gpu_id >= 0 and torch.cuda.is_available() else 'cpu')
 

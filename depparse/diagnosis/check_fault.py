@@ -26,12 +26,12 @@ def print_fault(example, parser, fo, res_arcs=None):
     fo.write('\n'.join(output) + '\n\n')
 
 
-def parse_examples(model, data, parser, fo):
+def parse_and_output(model, data, parser, fo):
     n_ex = 0
     n_match = 0
     for example in data:
         ex = PartialParse(example)
-        ex.parse(model, parser)
+        ex.safe_parse(model, parser)
         if not ex.success:
             print_fault(example, parser, fo)
         else:
@@ -49,4 +49,4 @@ def diagnosing(model, data, parser, output_file, **kwargs):
     model.eval()
     with torch.set_grad_enabled(False), open(output_file, 'w') as fo:
         fo.write(_first_row + '\n')
-        parse_examples(model, data, parser, fo)
+        parse_and_output(model, data, parser, fo)

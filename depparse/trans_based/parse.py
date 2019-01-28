@@ -47,6 +47,22 @@ class PartialParse:
         else:
             self.success = 1
 
+    def safe_parse(self, model, parser):
+        for i in range(self.n_words * 2):
+            feature = parser.extract_features(self.stack, self.buf, self.arcs, self.ex)
+            legal_label = parser.legal_labels(self.stack, self.buf)
+            prob = model(torch.LongTensor(feature), torch.DoubleTensor(legal_label).view(1, -1))
+
+            # choose the argmax in legal labels
+            desc_idx = torch.argsort(prob.squeeze(), dim=-1, descending=True).tolist()
+            transition = desc_idx[0]
+            for transition in desc_idx:
+                if legal_label[transition] > 0:
+                    break
+            self.parse_step(transition, parser)
+
+        self.success = 1
+
     def accuracy(self, unlabeled=True):
         if not self.success:
             return 0
