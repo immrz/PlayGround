@@ -77,8 +77,6 @@ def train_model(train_data, model, criterion, optimizer, device,
     if dev_data is not None:
         eval_data, parser = dev_data
 
-    model = model.to(device)
-
     for epoch in range(num_epoch):
         model.train()
         if scheduler is not None:
@@ -100,12 +98,12 @@ def train_model(train_data, model, criterion, optimizer, device,
         print('Training epoch {:03d}, loss is {:.4f}'.format(epoch, epoch_loss))
         if dev_data is not None:
             print('Evaluating on the development set...')
-            prediction(model, eval_data, parser)
+            prediction(model, eval_data, parser, device)
         print('\n' + '=' * 40 + '\n')
-    return model.to('cpu')
+    return model
 
 
-def prediction(model, data, parser):
+def prediction(model, data, parser, device):
     model.eval()
     with torch.set_grad_enabled(False):
         num_suc = 0
@@ -115,7 +113,7 @@ def prediction(model, data, parser):
 
         for id, example in enumerate(data):
             ex = PartialParse(example)
-            ex.safe_parse(model, parser)
+            ex.safe_parse(model, parser, device)
             if not ex.success:
                 continue
             num_suc += 1
@@ -165,17 +163,19 @@ def main():
     criterion = nn.CrossEntropyLoss()
     # optimizer = optim.SGD(params=model.parameters(), lr=default.lr, momentum=default.momentum)
     # exp_lr_scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=default.num_epoch // 3, gamma=0.1)
-    optimizer = optim.Adagrad(params=model.parameters(), lr=default.lr, weight_decay=default.weight_decay)
     device = torch.device('cuda:{:d}'.format(default.gpu_id)
                           if default.gpu_id >= 0 and torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    optimizer = optim.Adagrad(params=model.parameters(), lr=default.lr, weight_decay=default.weight_decay)
 
     model = train_model(train_data, model, criterion, optimizer, device,
                         dev_data=(dev_set, parser), batch_size=default.batch_size, num_epoch=default.num_epoch)
+    model = model.to('cpu')
 
     if args.model_path is not None:
         torch.save(model.state_dict(), args.model_path)
 
-    prediction(model, test_set, parser)
+    prediction(model, test_set, parser, 'cpu')
 
 
 if __name__ == '__main__':

@@ -47,11 +47,12 @@ class PartialParse:
         else:
             self.success = 1
 
-    def safe_parse(self, model, parser):
+    def safe_parse(self, model, parser, device):
         for i in range(self.n_words * 2):
             feature = parser.extract_features(self.stack, self.buf, self.arcs, self.ex)
             legal_label = parser.legal_labels(self.stack, self.buf)
-            prob = model(torch.LongTensor(feature), torch.DoubleTensor(legal_label).view(1, -1))
+            in1, in2 = torch.LongTensor(feature), torch.DoubleTensor(legal_label).view(1,-1)
+            prob = model(in1.to(device), in2.to(device)).to('cpu')
 
             # choose the argmax in legal labels
             desc_idx = torch.argsort(prob.squeeze(), dim=-1, descending=True).tolist()
