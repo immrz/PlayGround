@@ -1,5 +1,4 @@
 import torch
-import traceback
 
 
 class PartialParse:
@@ -47,7 +46,7 @@ class PartialParse:
         else:
             self.success = 1
 
-    def safe_parse(self, model, parser, device):
+    def safe_parse(self, model, parser, device='cpu'):
         for i in range(self.n_words * 2):
             feature = parser.extract_features(self.stack, self.buf, self.arcs, self.ex)
             legal_label = parser.legal_labels(self.stack, self.buf)
@@ -55,7 +54,8 @@ class PartialParse:
             prob = model(in1.to(device), in2.to(device)).to('cpu')
 
             # choose the argmax in legal labels
-            desc_idx = torch.argsort(prob.squeeze(), dim=-1, descending=True).tolist()
+            _, desc_idx = torch.sort(prob.squeeze(), dim=-1, descending=True)
+            desc_idx = desc_idx.tolist()
             transition = desc_idx[0]
             for transition in desc_idx:
                 if legal_label[transition] > 0:
